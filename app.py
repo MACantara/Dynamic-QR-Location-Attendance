@@ -1,6 +1,7 @@
 import random, string, time
 from io import BytesIO
 from math import radians, sin, cos, sqrt, atan2
+import sqlite3
 
 from flask import Flask, render_template, request, send_file, jsonify
 from flask_socketio import SocketIO
@@ -9,9 +10,12 @@ import qrcode
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins='*')
 
-# simple in-memory store
-active_tokens = {}      # token -> {'timestamp':..., 'used':False}
-attendances = []        # list of check-in records
+# replace in-memory dicts with a SQLite in-memory database
+conn = sqlite3.connect(':memory:', check_same_thread=False)
+cur = conn.cursor()
+cur.execute('CREATE TABLE tokens(token TEXT PRIMARY KEY, timestamp REAL, used INTEGER)')
+cur.execute('CREATE TABLE attendances(token TEXT, lat REAL, lng REAL, time REAL)')
+conn.commit()
 
 # configure your class location & radius (km)
 CLASS_LAT = 14.395673
@@ -33,7 +37,12 @@ def admin_dashboard():
 @app.route('/generate_qr')
 def generate_qr():
     token = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
-    active_tokens[token] = {'timestamp': time.time(), 'used': False}
+    # store token in SQLite
+    cur.execute(
+        'INSERT INTO tokens(token, timestamp, used) VALUES (?, ?, ?)', 
+        (token, time.time(), 0)
+    )
+    conn.commit()
     qr_data = request.host_url + 'scan/' + token
     img = qrcode.make(qr_data)
     buf = BytesIO(); img.save(buf); buf.seek(0)
@@ -41,7 +50,11 @@ def generate_qr():
 
 @app.route('/scan/<token>')
 def scan(token):
-    if token not in active_tokens or active_tokens[token]['used']:
+    # check token in SQLite
+    row = cur.execute(
+        'SELECT used FROM tokens WHERE token = ?', (token,)
+    ).fetchone()
+    if not row or row[0] == 1:
         return "Invalid or expired QR code", 400
     return render_template('index.html', token=token)
 
@@ -51,13 +64,25 @@ def checkin():
     token = data.get('token','')
     lat = float(data.get('lat',0))
     lng = float(data.get('lng',0))
-    if token not in active_tokens or active_tokens[token]['used']:
+
+    # validate token
+    row = cur.execute(
+        'SELECT used FROM tokens WHERE token = ?', (token,)
+    ).fetchone()
+    if not row or row[0] == 1:
         return jsonify(status='error', message='Invalid or already used token')
     if not within_radius(lat, lng):
         return jsonify(status='error', message='Outside of allowed location')
-    active_tokens[token]['used'] = True
-    attendances.append({'token':token,'lat':lat,'lng':lng,'time':time.time()})
-    socketio.emit('new_attendance', {'token':token,'lat':lat,'lng':lng})
+
+    # mark token used & record attendance
+    cur.execute('UPDATE tokens SET used = 1 WHERE token = ?', (token,))
+    cur.execute(
+        'INSERT INTO attendances(token, lat, lng, time) VALUES (?, ?, ?, ?)',
+        (token, lat, lng, time.time())
+    )
+    conn.commit()
+
+    socketio.emit('new_attendance', {'token': token, 'lat': lat, 'lng': lng})
     return jsonify(status='success')
 
 if __name__ == '__main__':
