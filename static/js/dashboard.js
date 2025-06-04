@@ -1,4 +1,6 @@
 const socket = io();
+let lastCount = 0;  // track previous number of check-ins
+
 document.getElementById('generate-btn').onclick = () => {
   document.getElementById('qr-img').src = '/generate_qr?ts=' + Date.now();
 };
@@ -17,6 +19,11 @@ function refreshAttendances() {
           <td class="py-2 px-4">${data.lng.toFixed(5)}</td>`;
         tbody.appendChild(tr);
       });
+      // if a new check-in arrived, auto‐generate a fresh QR
+      if (list.length > lastCount) {
+        document.getElementById('generate-btn').click();
+      }
+      lastCount = list.length;
     });
 }
 
