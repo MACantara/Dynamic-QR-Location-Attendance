@@ -46,15 +46,13 @@ def generate_qr():
 def scan(token):
     if token not in active_tokens or active_tokens[token]['used']:
         return "Invalid or expired QR code", 400
-    ua = request.headers.get('User-Agent', '')
-    info = active_tokens.setdefault(token, {})
-    # record or validate scanner UA
-    if 'allowed_ua' not in info:
-        info['allowed_ua'] = ua
-        # trigger new QR for admin
+
+    # notify admin dashboard to issue a fresh QR code upon first open
+    info = active_tokens[token]
+    if not info.get('opened', False):
+        info['opened'] = True
         socketio.emit('new_qr')
-    elif info['allowed_ua'] != ua:
-        return "<h3>QR can only be used on the device that scanned it.</h3>", 400
+
     return render_template('index.html', token=token)
 
 @app.route('/checkin', methods=['POST'])
