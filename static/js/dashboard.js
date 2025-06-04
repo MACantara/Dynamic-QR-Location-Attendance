@@ -34,32 +34,44 @@ refreshAttendances();
 
 let map, marker, circle, currentSettings = {};
 
+// load from localStorage if present
+function loadLocalSettings() {
+  const saved = localStorage.getItem('attendanceSettings');
+  return saved ? JSON.parse(saved) : null;
+}
+
+// persist to localStorage
+function saveLocalSettings() {
+  localStorage.setItem('attendanceSettings', JSON.stringify(currentSettings));
+}
+
 function initMap() {
-  fetch('/api/settings')
-    .then(r => r.json())
-    .then(s => {
-      currentSettings = s;
-      // init map
-      map = L.map('map').setView([s.lat, s.lng], 16);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-      marker = L.marker([s.lat, s.lng], {draggable:true}).addTo(map);
-      circle = L.circle([s.lat, s.lng], {radius: s.radius * 1000}).addTo(map);
-      // slider
-      const slider = document.getElementById('radius-slider'),
-            display = document.getElementById('radius-value');
-      slider.value = s.radius; display.innerText = s.radius;
-      // events
-      marker.on('dragend', e => {
-        const pos = e.target.getLatLng();
-        circle.setLatLng(pos);
-        currentSettings.lat = pos.lat; currentSettings.lng = pos.lng;
-      });
-      slider.oninput = () => {
-        currentSettings.radius = parseFloat(slider.value);
-        display.innerText = slider.value;
-        circle.setRadius(currentSettings.radius * 1000);
-      };
+  const local = loadLocalSettings();
+  const settingsPromise = local
+    ? Promise.resolve(local)
+    : fetch('/api/settings').then(r => r.json());
+  settingsPromise.then(s => {
+    currentSettings = s;
+    if (!local) saveLocalSettings();
+    map = L.map('map').setView([s.lat, s.lng], 16);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    marker = L.marker([s.lat, s.lng], {draggable:true}).addTo(map);
+    circle = L.circle([s.lat, s.lng], {radius: s.radius * 1000}).addTo(map);
+    const slider = document.getElementById('radius-slider'),
+          display = document.getElementById('radius-value');
+    slider.value = s.radius; display.innerText = s.radius;
+    marker.on('dragend', e => {
+      const pos = e.target.getLatLng();
+      circle.setLatLng(pos);
+      currentSettings.lat = pos.lat;
+      currentSettings.lng = pos.lng;
     });
+    slider.oninput = () => {
+      currentSettings.radius = parseFloat(slider.value);
+      display.innerText = slider.value;
+      circle.setRadius(currentSettings.radius * 1000);
+    };
+  });
 }
 
 document.getElementById('save-settings').onclick = () => {
@@ -67,7 +79,8 @@ document.getElementById('save-settings').onclick = () => {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(currentSettings)
-  });
+  })
+  .then(() => saveLocalSettings());
 };
 
 window.onload = () => {
