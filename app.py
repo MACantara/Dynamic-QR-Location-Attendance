@@ -14,8 +14,8 @@ active_tokens = {}      # token -> {'timestamp':..., 'used':False}
 attendances = []        # list of check-in records
 
 # configure your class location & radius (km)
-CLASS_LAT = 37.4221
-CLASS_LNG = -122.0841
+CLASS_LAT = 14.395673
+CLASS_LNG = 120.976068
 CLASS_RADIUS = 0.1
 
 def within_radius(lat, lng):
