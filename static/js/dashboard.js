@@ -1,6 +1,10 @@
 const socket = io();
 let lastCount = 0;  // track previous number of check-ins
 
+socket.on('new_qr', () => {
+  document.getElementById('generate-btn').click();
+});
+
 document.getElementById('generate-btn').onclick = () => {
   document.getElementById('qr-img').src = '/generate_qr?ts=' + Date.now();
 };
