@@ -1,13 +1,20 @@
-const socket = io();
-let lastCount = 0;  // track previous number of check-ins
-
-socket.on('new_qr', () => {
-  document.getElementById('generate-btn').click();
-});
+let lastCount = 0;
+let lastQrTimestamp = 0;
 
 document.getElementById('generate-btn').onclick = () => {
   document.getElementById('qr-img').src = '/generate_qr?ts=' + Date.now();
 };
+
+function checkForNewQr() {
+  fetch('/api/new_qr_check')
+    .then(r => r.json())
+    .then(data => {
+      if (data.timestamp > lastQrTimestamp) {
+        lastQrTimestamp = data.timestamp;
+        document.getElementById('generate-btn').click();
+      }
+    });
+}
 
 function refreshAttendances() {
   fetch('/api/attendances')
@@ -18,11 +25,18 @@ function refreshAttendances() {
       list.forEach(data => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td class="py-2 px-4">${data.token}</td>
-          <td class="py-2 px-4">${data.lat.toFixed(5)}</td>
-          <td class="py-2 px-4">${data.lng.toFixed(5)}</td>`;
+          <td class="px-4 py-2">${data.token}</td>
+          <td class="px-4 py-2">${data.name || ''}</td>
+          <td class="px-4 py-2">${data.course || ''}</td>
+          <td class="px-4 py-2">${data.year || ''}</td>
+          <td class="px-4 py-2">${data.lat.toFixed(5)}</td>
+          <td class="px-4 py-2">${data.lng.toFixed(5)}</td>`;
         tbody.appendChild(tr);
       });
+      if (list.length > lastCount) {
+        document.getElementById('generate-btn').click();
+      }
+      lastCount = list.length;
     });
 }
 
@@ -35,10 +49,13 @@ function refreshDenied() {
       list.forEach(data => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td class="py-2 px-4">${data.token}</td>
-          <td class="py-2 px-4">${data.lat.toFixed(5)}</td>
-          <td class="py-2 px-4">${data.lng.toFixed(5)}</td>
-          <td class="py-2 px-4">${data.reason}</td>`;
+          <td class="px-4 py-2">${data.token}</td>
+          <td class="px-4 py-2">${data.name || ''}</td>
+          <td class="px-4 py-2">${data.course || ''}</td>
+          <td class="px-4 py-2">${data.year || ''}</td>
+          <td class="px-4 py-2">${data.lat.toFixed(5)}</td>
+          <td class="px-4 py-2">${data.lng.toFixed(5)}</td>
+          <td class="px-4 py-2">${data.reason}</td>`;
         tbody.appendChild(tr);
       });
     });
@@ -48,6 +65,7 @@ function refreshDenied() {
 setInterval(() => {
   refreshAttendances();
   refreshDenied();
+  checkForNewQr();
 }, 5000);
 
 // initial load

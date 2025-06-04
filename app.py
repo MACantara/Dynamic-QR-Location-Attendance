@@ -3,16 +3,15 @@ from io import BytesIO
 from math import radians, sin, cos, sqrt, atan2
 
 from flask import Flask, render_template, request, send_file, jsonify
-from flask_socketio import SocketIO
 import qrcode
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins='*')
 
 # simple in-memory store
 active_tokens = {}      # token -> {'timestamp':..., 'used':False}
 attendances = []        # list of check-in records
-denied_attempts = []    # new: store out-of-radius scans
+denied_attempts = []    # store out-of-radius scans
+new_qr_trigger = {'timestamp': 0}  # trigger for new QR generation
 
 # dynamic settings
 settings = {
@@ -47,11 +46,17 @@ def scan(token):
     if token not in active_tokens or active_tokens[token]['used']:
         return "Invalid or expired QR code", 400
 
-    # notify admin dashboard to issue a fresh QR code upon first open
+    ua = request.headers.get('User-Agent', '')
     info = active_tokens[token]
+    
+    # first time opening - record device and trigger new QR
     if not info.get('opened', False):
         info['opened'] = True
-        socketio.emit('new_qr')
+        info['device_ua'] = ua
+        new_qr_trigger['timestamp'] = time.time()
+    # check if same device
+    elif info.get('device_ua') != ua:
+        return "<h3>QR can only be used on the device that first opened it.</h3>", 400
 
     return render_template('index.html', token=token)
 
@@ -61,50 +66,51 @@ def checkin():
     token = data.get('token','')
     lat = float(data.get('lat',0))
     lng = float(data.get('lng',0))
-    # handle invalid or already used token
+    name = data.get('name','')
+    course = data.get('course','')
+    year = data.get('year','')
+    
     if token not in active_tokens or active_tokens[token]['used']:
         denied_attempts.append({
-            'token': token,
-            'lat': lat,
-            'lng': lng,
-            'time': time.time(),
-            'reason': 'invalid_or_used'
+            'token': token, 'lat': lat, 'lng': lng, 'time': time.time(),
+            'reason': 'invalid_or_used', 'name': name, 'course': course, 'year': year
         })
         return jsonify(status='error', message='Invalid or already used token')
     if not within_radius(lat, lng):
-        # log denied attempt
         denied_attempts.append({
-            'token': token,
-            'lat': lat,
-            'lng': lng,
-            'time': time.time(),
-            'reason': 'outside'
+            'token': token, 'lat': lat, 'lng': lng, 'time': time.time(),
+            'reason': 'outside', 'name': name, 'course': course, 'year': year
         })
         return jsonify(status='error', message='Outside of allowed location')
+    
     active_tokens[token]['used'] = True
-    attendances.append({'token':token,'lat':lat,'lng':lng,'time':time.time()})
-    socketio.emit('new_attendance', {'token':token,'lat':lat,'lng':lng})
+    attendances.append({
+        'token': token, 'lat': lat, 'lng': lng, 'time': time.time(),
+        'name': name, 'course': course, 'year': year
+    })
     return jsonify(status='success')
 
 @app.route('/api/attendances')
 def api_attendances():
-    # return all recorded check-ins as JSON
     return jsonify(attendances)
 
 @app.route('/api/denied')
 def api_denied():
     return jsonify(denied_attempts)
 
+@app.route('/api/new_qr_check')
+def api_new_qr_check():
+    return jsonify({'timestamp': new_qr_trigger['timestamp']})
+
 @app.route('/api/settings', methods=['GET', 'POST'])
 def api_settings():
     if request.method == 'GET':
         return jsonify(settings)
     data = request.json or {}
-    # update only provided fields
     for k in ('lat','lng','radius'):
         if k in data:
             settings[k] = float(data[k])
     return jsonify(settings)
 
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
