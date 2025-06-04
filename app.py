@@ -54,7 +54,15 @@ def checkin():
     token = data.get('token','')
     lat = float(data.get('lat',0))
     lng = float(data.get('lng',0))
+    # handle invalid or already used token
     if token not in active_tokens or active_tokens[token]['used']:
+        denied_attempts.append({
+            'token': token,
+            'lat': lat,
+            'lng': lng,
+            'time': time.time(),
+            'reason': 'invalid_or_used'
+        })
         return jsonify(status='error', message='Invalid or already used token')
     if not within_radius(lat, lng):
         # log denied attempt
