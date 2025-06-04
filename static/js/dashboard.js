@@ -31,3 +31,45 @@ function refreshAttendances() {
 setInterval(refreshAttendances, 5000);
 // initial load
 refreshAttendances();
+
+let map, marker, circle, currentSettings = {};
+
+function initMap() {
+  fetch('/api/settings')
+    .then(r => r.json())
+    .then(s => {
+      currentSettings = s;
+      // init map
+      map = L.map('map').setView([s.lat, s.lng], 16);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+      marker = L.marker([s.lat, s.lng], {draggable:true}).addTo(map);
+      circle = L.circle([s.lat, s.lng], {radius: s.radius * 1000}).addTo(map);
+      // slider
+      const slider = document.getElementById('radius-slider'),
+            display = document.getElementById('radius-value');
+      slider.value = s.radius; display.innerText = s.radius;
+      // events
+      marker.on('dragend', e => {
+        const pos = e.target.getLatLng();
+        circle.setLatLng(pos);
+        currentSettings.lat = pos.lat; currentSettings.lng = pos.lng;
+      });
+      slider.oninput = () => {
+        currentSettings.radius = parseFloat(slider.value);
+        display.innerText = slider.value;
+        circle.setRadius(currentSettings.radius * 1000);
+      };
+    });
+}
+
+document.getElementById('save-settings').onclick = () => {
+  fetch('/api/settings', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(currentSettings)
+  });
+};
+
+window.onload = () => {
+  initMap();
+};

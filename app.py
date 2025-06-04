@@ -13,18 +13,20 @@ socketio = SocketIO(app, cors_allowed_origins='*')
 active_tokens = {}      # token -> {'timestamp':..., 'used':False}
 attendances = []        # list of check-in records
 
-# configure your class location & radius (km)
-CLASS_LAT = 14.395673
-CLASS_LNG = 120.976068
-CLASS_RADIUS = 0.1
+# dynamic settings
+settings = {
+    'lat': 14.395673,
+    'lng': 120.976068,
+    'radius': 0.1      # km
+}
 
 def within_radius(lat, lng):
     R = 6371
-    dlat = radians(lat - CLASS_LAT)
-    dlon = radians(lng - CLASS_LNG)
-    a = sin(dlat/2)**2 + cos(radians(lat))*cos(radians(CLASS_LAT))*sin(dlon/2)**2
+    dlat = radians(lat - settings['lat'])
+    dlon = radians(lng - settings['lng'])
+    a = sin(dlat/2)**2 + cos(radians(lat))*cos(radians(settings['lat']))*sin(dlon/2)**2
     c = 2*atan2(sqrt(a), sqrt(1-a))
-    return (R * c) <= CLASS_RADIUS
+    return (R * c) <= settings['radius']
 
 @app.route('/')
 def admin_dashboard():
@@ -64,6 +66,17 @@ def checkin():
 def api_attendances():
     # return all recorded check-ins as JSON
     return jsonify(attendances)
+
+@app.route('/api/settings', methods=['GET', 'POST'])
+def api_settings():
+    if request.method == 'GET':
+        return jsonify(settings)
+    data = request.json or {}
+    # update only provided fields
+    for k in ('lat','lng','radius'):
+        if k in data:
+            settings[k] = float(data[k])
+    return jsonify(settings)
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000, debug=True)
