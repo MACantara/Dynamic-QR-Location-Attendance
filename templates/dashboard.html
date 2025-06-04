@@ -4,49 +4,74 @@
   <title>Admin Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 </head>
-<body class="p-8">
-  <h1 class="text-2xl mb-4">Attendance Dashboard</h1>
-  <button id="generate-btn" class="bg-blue-500 text-white px-4 py-2 rounded inline-flex items-center">
-    <i class="bi bi-qr-code-scan mr-2"></i>Generate QR
-  </button>
-  <div class="mt-4">
-    <img id="qr-img" src="" alt="QR Code" class="w-64 h-64 border"/>
-  </div>
-  <h2 class="text-xl mt-8 mb-4">Check-ins</h2>
-  <table class="min-w-full bg-white border">
-    <thead>
-      <tr><th class="py-2">Token</th><th class="py-2">Lat</th><th class="py-2">Lng</th></tr>
-    </thead>
-    <tbody id="attendances"></tbody>
-  </table>
+<body class="p-8 bg-gray-50">
+  <div class="max-w-5xl mx-auto space-y-8">
+    <h1 class="text-3xl font-bold">Attendance Dashboard</h1>
 
-  <!-- new failed attempts table -->
-  <h2 class="text-xl mt-8 mb-4">Failed Attempts</h2>
-  <table class="min-w-full bg-white border">
-    <thead>
-      <tr>
-        <th class="py-2">Token</th>
-        <th class="py-2">Lat</th>
-        <th class="py-2">Lng</th>
-        <th class="py-2">Reason</th>
-      </tr>
-    </thead>
-    <tbody id="denied-attendances"></tbody>
-  </table>
+    <button id="generate-btn" class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+      <i class="bi bi-qr-code-scan mr-2"></i>Generate QR
+    </button>
 
-  <!-- map UI to set location -->
-  <div class="mt-8">
-    <h2 class="text-xl mb-2">Allowed Location</h2>
-    <div id="map" class="w-full h-64 border"></div>
-    <div class="flex items-center mt-2">
-      <label for="radius-slider" class="mr-2">Radius (km):</label>
-      <input id="radius-slider" type="range" min="0.01" max="1" step="0.01" class="flex-1"/>
-      <span id="radius-value" class="ml-2"></span>
+    <div class="mt-4">
+      <img id="qr-img" src="" alt="QR Code" class="w-64 h-64 border shadow"/>
     </div>
-    <button id="save-settings" class="mt-2 bg-green-500 text-white px-4 py-2 rounded">Save</button>
+
+    <section class="space-y-4">
+      <h2 class="text-2xl font-semibold">Check-ins</h2>
+      <div class="overflow-x-auto">
+        <table class="table-auto w-full bg-white shadow rounded">
+          <thead class="bg-gray-200">
+            <tr>
+              <th class="px-4 py-2">Token</th>
+              <th class="px-4 py-2">Name</th>
+              <th class="px-4 py-2">Course</th>
+              <th class="px-4 py-2">Year</th>
+              <th class="px-4 py-2">Lat</th>
+              <th class="px-4 py-2">Lng</th>
+            </tr>
+          </thead>
+          <tbody id="attendances" class="divide-y divide-gray-100"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="space-y-4">
+      <h2 class="text-2xl font-semibold text-red-600">Failed Attempts</h2>
+      <div class="overflow-x-auto">
+        <table class="table-auto w-full bg-white shadow rounded">
+          <thead class="bg-red-200">
+            <tr>
+              <th class="px-4 py-2">Token</th>
+              <th class="px-4 py-2">Name</th>
+              <th class="px-4 py-2">Course</th>
+              <th class="px-4 py-2">Year</th>
+              <th class="px-4 py-2">Lat</th>
+              <th class="px-4 py-2">Lng</th>
+              <th class="px-4 py-2">Reason</th>
+            </tr>
+          </thead>
+          <tbody id="denied-attendances" class="divide-y divide-gray-100"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- map UI to set location -->
+    <section class="space-y-4">
+      <h2 class="text-2xl font-semibold">Allowed Location</h2>
+      <div id="map" class="w-full h-64 rounded shadow"></div>
+      <div class="flex items-center space-x-2">
+        <label for="radius-slider" class="font-medium">Radius (km):</label>
+        <input id="radius-slider" type="range" min="0.01" max="1" step="0.01" class="flex-1"/>
+        <span id="radius-value" class="w-12 text-right font-mono"></span>
+      </div>
+      <button id="save-settings" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
+        Save
+      </button>
+    </section>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/socket.io/client-dist/socket.io.min.js"></script>
