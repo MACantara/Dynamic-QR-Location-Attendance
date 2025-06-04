@@ -12,6 +12,7 @@ socketio = SocketIO(app, cors_allowed_origins='*')
 # simple in-memory store
 active_tokens = {}      # token -> {'timestamp':..., 'used':False}
 attendances = []        # list of check-in records
+denied_attempts = []    # new: store out-of-radius scans
 
 # dynamic settings
 settings = {
@@ -56,6 +57,14 @@ def checkin():
     if token not in active_tokens or active_tokens[token]['used']:
         return jsonify(status='error', message='Invalid or already used token')
     if not within_radius(lat, lng):
+        # log denied attempt
+        denied_attempts.append({
+            'token': token,
+            'lat': lat,
+            'lng': lng,
+            'time': time.time(),
+            'reason': 'outside'
+        })
         return jsonify(status='error', message='Outside of allowed location')
     active_tokens[token]['used'] = True
     attendances.append({'token':token,'lat':lat,'lng':lng,'time':time.time()})
@@ -66,6 +75,10 @@ def checkin():
 def api_attendances():
     # return all recorded check-ins as JSON
     return jsonify(attendances)
+
+@app.route('/api/denied')
+def api_denied():
+    return jsonify(denied_attempts)
 
 @app.route('/api/settings', methods=['GET', 'POST'])
 def api_settings():

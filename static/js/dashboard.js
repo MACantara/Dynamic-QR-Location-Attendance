@@ -19,18 +19,36 @@ function refreshAttendances() {
           <td class="py-2 px-4">${data.lng.toFixed(5)}</td>`;
         tbody.appendChild(tr);
       });
-      // if a new check-in arrived, auto‐generate a fresh QR
-      if (list.length > lastCount) {
-        document.getElementById('generate-btn').click();
-      }
-      lastCount = list.length;
     });
 }
 
-// poll every 5 seconds
-setInterval(refreshAttendances, 5000);
+function refreshDenied() {
+  fetch('/api/denied')
+    .then(r => r.json())
+    .then(list => {
+      const tbody = document.getElementById('denied-attendances');
+      tbody.innerHTML = '';
+      list.forEach(data => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="py-2 px-4">${data.token}</td>
+          <td class="py-2 px-4">${data.lat.toFixed(5)}</td>
+          <td class="py-2 px-4">${data.lng.toFixed(5)}</td>
+          <td class="py-2 px-4">${data.reason}</td>`;
+        tbody.appendChild(tr);
+      });
+    });
+}
+
+// poll both every 5 seconds
+setInterval(() => {
+  refreshAttendances();
+  refreshDenied();
+}, 5000);
+
 // initial load
 refreshAttendances();
+refreshDenied();
 
 let map, marker, circle, currentSettings = {};
 
