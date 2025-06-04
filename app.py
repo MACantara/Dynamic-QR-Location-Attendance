@@ -60,5 +60,10 @@ def checkin():
     socketio.emit('new_attendance', {'token':token,'lat':lat,'lng':lng})
     return jsonify(status='success')
 
+@app.route('/api/attendances')
+def api_attendances():
+    # return all recorded check-ins as JSON
+    return jsonify(attendances)
+
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000, debug=True)
