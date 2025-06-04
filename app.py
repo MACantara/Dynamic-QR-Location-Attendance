@@ -28,6 +28,21 @@ def within_radius(lat, lng):
     c = 2*atan2(sqrt(a), sqrt(1-a))
     return (R * c) <= settings['radius']
 
+def extract_device_signature(ua):
+    """Extract a simplified device signature from User-Agent"""
+    ua = ua.lower()
+    # Extract key identifying parts
+    if 'iphone' in ua:
+        return 'iphone'
+    elif 'android' in ua:
+        return 'android'
+    elif 'ipad' in ua:
+        return 'ipad'
+    elif 'mobile' in ua:
+        return 'mobile'
+    else:
+        return 'desktop'
+
 @app.route('/')
 def admin_dashboard():
     return render_template('dashboard.html')
@@ -47,16 +62,17 @@ def scan(token):
         return "Invalid or expired QR code", 400
 
     ua = request.headers.get('User-Agent', '')
+    device_sig = extract_device_signature(ua)
     info = active_tokens[token]
     
-    # first time opening - record device and trigger new QR
+    # first time opening - record device signature and trigger new QR
     if not info.get('opened', False):
         info['opened'] = True
-        info['device_ua'] = ua
+        info['device_signature'] = device_sig
         new_qr_trigger['timestamp'] = time.time()
-    # check if same device
-    elif info.get('device_ua') != ua:
-        return "<h3>QR can only be used on the device that first opened it.</h3>", 400
+    # check if same device type
+    elif info.get('device_signature') != device_sig:
+        return "<h3>QR can only be used on the same type of device that first opened it.</h3>", 400
 
     return render_template('index.html', token=token)
 
